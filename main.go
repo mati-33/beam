@@ -41,12 +41,9 @@ func handleEmit() {
 	if err != nil {
 		exitf("failed to fetch '%s' file statistics", filename)
 	}
-	fmt.Printf("Sending '%s' (%s)\n", filename, formatFileSize(stats.Size()))
+	fmt.Printf("Emiting '%s' (%s)\n", filename, formatFileSize(stats.Size()))
 	beamCode := generateBeamCode()
 	fmt.Println("beam code is:", beamCode)
-	fmt.Println("on the other computer run")
-	fmt.Println()
-	fmt.Println("beam absorb", beamCode)
 	fmt.Println()
 
 	l, err := net.Listen("tcp", "localhost:3000")
@@ -55,28 +52,35 @@ func handleEmit() {
 		exit("failed to start tcp server, error:", err)
 	}
 
+	spinner := NewSpinner()
+	spinner.Start()
+
 	conn, err := l.Accept()
 	defer conn.Close()
 	if err != nil {
 		exit("failed to accept connection, error:", err)
 	}
 
+	tries := 0
 	buff := make([]byte, 8)
 	for {
+		if tries == 3 {
+			exit("\nabsorber failed to authenticate")
+		}
 		n, err := conn.Read(buff)
 		if n == 0 {
-			exit("client disconnected")
+			exit("absorber disconnected")
 		}
 		if string(buff[:n]) != beamCode {
-			fmt.Println("invalid beam code!", string(buff[:n]))
-			conn.Write([]byte("invalid beam code!"))
+			conn.Write([]byte("NO"))
+			tries++
 			continue
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				exit("client disconnected")
+				exit("absorber disconnected")
 			}
-			exit("failed to obtain beam code, error:", err)
+			exit("failed to verify beam code, error:", err)
 		}
 		if string(buff[:n]) == beamCode {
 			conn.Write([]byte("OK"))
@@ -84,8 +88,9 @@ func handleEmit() {
 		}
 	}
 
-	fmt.Println("beam code verified")
-	fmt.Println("Sending file to the client...")
+	spinner.Stop()
+	fmt.Println()
+	fmt.Println("Emiting to", conn.RemoteAddr())
 
 	cpBuff := make([]byte, 8)
 	for {
@@ -101,12 +106,12 @@ func handleEmit() {
 			if errors.Is(err, io.EOF) {
 				exit("client disconnected while transfering file")
 			}
-			exit("failed to send file, error:", err2)
+			exit("failed to emit file, error:", err2)
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
-	fmt.Println("file transfered!")
+	fmt.Println("file emited!")
 }
 
 func handleAbsorb() {
