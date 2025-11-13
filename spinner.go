@@ -7,6 +7,7 @@ import (
 
 type spinner struct {
 	frames    []string
+	text      string
 	currFrame int
 	stopch    chan int
 	timeStep  time.Duration
@@ -14,10 +15,11 @@ type spinner struct {
 
 func NewSpinner() *spinner {
 	return &spinner{
-		frames:    []string{"Waiting.  ", "Waiting.. ", "Waiting..."},
+		frames:    []string{"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"},
+		text:      "Waiting for absorber...",
 		currFrame: 0,
 		stopch:    make(chan int),
-		timeStep:  200 * time.Millisecond,
+		timeStep:  100 * time.Millisecond,
 	}
 }
 
@@ -42,6 +44,6 @@ func (s *spinner) update() {
 	if s.currFrame == len(s.frames) {
 		s.currFrame = 0
 	}
-	fmt.Print("\r\033[K", s.frames[s.currFrame])
+	fmt.Printf("\r\033[K%s %s", s.frames[s.currFrame], s.text)
 	s.currFrame++
 }
