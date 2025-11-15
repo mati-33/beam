@@ -11,36 +11,45 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		exit("expected 'emit' or 'absorb' commands")
+		fmt.Fprintf(os.Stderr, "expected 'emit' or 'absorb' commands\n")
+		os.Exit(1)
 	}
 
-	switch os.Args[1] {
+	var err error
 
+	switch os.Args[1] {
 	case "emit":
-		handleEmit()
+		err = handleEmit()
 	case "absorb":
-		handleAbsorb()
+		err = handleAbsorb()
 	default:
-		exit("unknown command:", os.Args[1])
+		err = fmt.Errorf("unknown command: %s", os.Args[1])
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\nan error occured: %v\n", err)
+		os.Exit(1)
 	}
 }
 
-func handleEmit() {
+func handleEmit() error {
 	if len(os.Args) < 3 {
-		exit("'emit' command expects filename argument")
+		return errors.New("'emit' command expects filename argument")
 	}
 
 	filename := os.Args[2]
 	file, err := os.Open(filename)
 	defer file.Close()
+
 	if err != nil {
-		exitf("failed to open '%s' file", filename)
+		return fmt.Errorf("failed to open %s file: %v", filename, err)
 	}
 
 	stats, err := file.Stat()
 	if err != nil {
-		exitf("failed to fetch '%s' file statistics", filename)
+		return fmt.Errorf("failed to fetch %s file information: %v", filename, err)
 	}
+
 	fmt.Printf("Emiting '%s' (%s)\n", filename, formatFileSize(stats.Size()))
 	beamCode := generateBeamCode()
 	fmt.Println("beam code is:", beamCode)
@@ -49,7 +58,7 @@ func handleEmit() {
 	l, err := net.Listen("tcp", "localhost:3000")
 	defer l.Close()
 	if err != nil {
-		exit("failed to start tcp server, error:", err)
+		return fmt.Errorf("failed to start tcp server: %v", err)
 	}
 
 	spinner := NewSpinner()
@@ -58,14 +67,14 @@ func handleEmit() {
 	conn, err := l.Accept()
 	defer conn.Close()
 	if err != nil {
-		exit("failed to accept connection, error:", err)
+		return fmt.Errorf("failed to accept connection: %v", err)
 	}
 
 	buff := make([]byte, 8)
 	for {
 		n, err := conn.Read(buff)
 		if n == 0 {
-			exit("absorber disconnected")
+			return errors.New("absorber diconnected")
 		}
 		if string(buff[:n]) != beamCode {
 			conn.Write([]byte("NO"))
@@ -73,9 +82,9 @@ func handleEmit() {
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				exit("absorber disconnected")
+				return errors.New("absorber diconnected")
 			}
-			exit("failed to verify beam code, error:", err)
+			return fmt.Errorf("failed to verify beam code: %v", err)
 		}
 		if string(buff[:n]) == beamCode {
 			conn.Write([]byte("OK"))
@@ -89,33 +98,36 @@ func handleEmit() {
 
 	cpBuff := make([]byte, 8)
 	for {
-		n, err := file.Read(cpBuff)
-		_, err2 := conn.Write(cpBuff[:n])
-		if err != nil {
-			if errors.Is(err, io.EOF) {
+		n, readErr := file.Read(cpBuff)
+		_, writeErr := conn.Write(cpBuff[:n])
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
 				break
 			}
-			exit("failed to read file, error:", err)
+			return fmt.Errorf("failed to read file: %v", readErr)
 		}
-		if err2 != nil {
-			if errors.Is(err, io.EOF) {
-				exit("client disconnected while transfering file")
+		if writeErr != nil {
+			if errors.Is(writeErr, io.EOF) {
+				return errors.New("absorber disconnected during file transfer")
 			}
-			exit("failed to emit file, error:", err2)
+			return fmt.Errorf("failed to emit file: %v", writeErr)
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	fmt.Println("file emited!")
+	return nil
 }
 
-func handleAbsorb() {
+func handleAbsorb() error {
 	if len(os.Args) < 3 {
-		exit("'absorb' command expects beam code argument")
+		return errors.New("'absorb' command expects beam code argument")
 	}
 	beamCode := os.Args[2]
 	fmt.Println("handling absorb...")
 	fmt.Println("beam code is:", beamCode)
+
+	return nil
 }
 
 func generateBeamCode() string {
@@ -132,14 +144,4 @@ func formatFileSize(size int64) string {
 	} else {
 		return fmt.Sprintf("%.2f GB", float64(size)/1_000_000_000.)
 	}
-}
-
-func exit(a ...any) {
-	fmt.Fprintln(os.Stderr, a...)
-	os.Exit(1)
-}
-
-func exitf(format string, a ...any) {
-	fmt.Fprintf(os.Stderr, format, a...)
-	os.Exit(1)
 }
