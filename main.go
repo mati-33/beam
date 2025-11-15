@@ -61,19 +61,14 @@ func handleEmit() {
 		exit("failed to accept connection, error:", err)
 	}
 
-	tries := 0
 	buff := make([]byte, 8)
 	for {
-		if tries == 3 {
-			exit("\nabsorber failed to authenticate")
-		}
 		n, err := conn.Read(buff)
 		if n == 0 {
 			exit("absorber disconnected")
 		}
 		if string(buff[:n]) != beamCode {
 			conn.Write([]byte("NO"))
-			tries++
 			continue
 		}
 		if err != nil {
