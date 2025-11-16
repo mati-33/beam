@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"time"
+
+	"github.com/mati-33/beam/internal/ui"
 )
 
 func main() {
@@ -61,7 +63,7 @@ func handleEmit() error {
 		return fmt.Errorf("failed to start tcp server: %v", err)
 	}
 
-	spinner := NewSpinner()
+	spinner := ui.NewSpinner()
 	spinner.Start()
 
 	conn, err := l.Accept()
