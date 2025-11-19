@@ -7,21 +7,37 @@ import (
 	"hash/crc32"
 )
 
-type messageType byte
+type MessageType byte
 
 const (
-	OK messageType = 0x01
-	NO messageType = 0x02
-	BC messageType = 0x03
-	FI messageType = 0x04
-	FC messageType = 0x05
+	OK MessageType = 0x01
+	NO MessageType = 0x02
+	BC MessageType = 0x03
+	FI MessageType = 0x04
+	FC MessageType = 0x05
 )
 
 var startingSequence = [...]byte{0x06, 0x07, 0x08, 0x09}
 
 type Message struct {
-	Type    messageType
+	Type    MessageType
 	Payload []byte
+}
+
+func NewMessage(t MessageType, p []byte) *Message {
+	switch t {
+	case OK, NO:
+		if len(p) != 0 {
+			panic("OK/NO messages cannot have payload")
+		}
+	case BC, FI, FC:
+		if len(p) == 0 {
+			panic("BC/FI/FC messages require payload")
+		}
+	default:
+		panic("unknown message type")
+	}
+	return &Message{t, p}
 }
 
 func Encode(m Message) []byte {
@@ -43,7 +59,7 @@ func Decode(b []byte) (Message, error) {
 		return Message{}, errors.New("invalid starting byte sequence")
 	}
 
-	mt := messageType(b[4])
+	mt := MessageType(b[4])
 	switch mt {
 	case OK, NO, BC, FI, FC:
 	default:
