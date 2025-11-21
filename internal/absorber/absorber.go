@@ -5,7 +5,6 @@ import (
 	"net"
 
 	p "github.com/mati-33/beam/internal/protocol"
-	t "github.com/mati-33/beam/internal/transport"
 )
 
 type Absorber struct {
@@ -33,7 +32,7 @@ func (a *Absorber) Receive(msgType p.MessageType) (p.Message, error) {
 		panic("unknown message type")
 	}
 
-	m, err := t.ReadMessage(a.conn)
+	m, err := p.ReadMessage(a.conn)
 	if err != nil {
 		return p.Message{}, fmt.Errorf("failed to receive message from emitter: %v", err)
 	}
@@ -49,7 +48,7 @@ func (a *Absorber) Send(m p.Message) error {
 		panic("unknown message type")
 	}
 
-	err := t.WriteMessage(a.conn, m)
+	err := p.WriteMessage(a.conn, m)
 	if err != nil {
 		return fmt.Errorf("failed to send message to emitter: %v", err)
 	}

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
+	"io"
 )
 
 type MessageType byte
@@ -24,55 +26,55 @@ type Message struct {
 	Payload []byte
 }
 
-func NewMessage(t MessageType, p []byte) *Message {
-	switch t {
-	case OK, NO:
-		if len(p) != 0 {
-			panic("OK/NO messages cannot have payload")
-		}
-	case BC, FI, FC:
-		if len(p) == 0 {
-			panic("BC/FI/FC messages require payload")
-		}
-	default:
-		panic("unknown message type")
-	}
-	return &Message{t, p}
-}
+func NewOK() *Message         { return &Message{Type: OK} }
+func NewNO() *Message         { return &Message{Type: NO} }
+func NewBC(p []byte) *Message { return &Message{Type: BC, Payload: p} }
+func NewFI(p []byte) *Message { return &Message{Type: FI, Payload: p} }
+func NewFC(p []byte) *Message { return &Message{Type: FC, Payload: p} }
 
-func Encode(m Message) []byte {
+func WriteMessage(w io.Writer, m Message) error {
 	b := make([]byte, 0, 7+len(m.Payload)+4)
 	b = append(b, startingSequence[:]...)
 	b = append(b, byte(m.Type))
 	b = binary.BigEndian.AppendUint16(b, uint16(len(m.Payload)))
 	b = append(b, m.Payload...)
 	b = binary.BigEndian.AppendUint32(b, crc32.ChecksumIEEE(m.Payload))
-	return b
-}
 
-func Decode(b []byte) (Message, error) {
-	if len(b) < 11 {
-		return Message{}, errors.New("message too short")
+	_, err := w.Write(b)
+	if err != nil {
+		return fmt.Errorf("failed to write message: %v", err)
 	}
 
-	if !bytes.Equal(b[:4], startingSequence[:]) {
+	return nil
+}
+
+func ReadMessage(r io.Reader) (Message, error) {
+	header := make([]byte, 7)
+	_, err := io.ReadFull(r, header)
+	if err != nil {
+		return Message{}, fmt.Errorf("failed to read message header: %v", err)
+	}
+
+	if !bytes.Equal(header[:4], startingSequence[:]) {
 		return Message{}, errors.New("invalid starting byte sequence")
 	}
 
-	mt := MessageType(b[4])
+	mt := MessageType(header[4])
 	switch mt {
 	case OK, NO, BC, FI, FC:
 	default:
 		return Message{}, errors.New("invalid message type")
 	}
 
-	payloadLen := binary.BigEndian.Uint16(b[5:7])
-	if len(b) != 7+int(payloadLen)+4 {
-		return Message{}, errors.New("payload length missmatch")
+	payloadLen := binary.BigEndian.Uint16(header[5:7])
+	rest := make([]byte, payloadLen+4)
+	_, err = io.ReadFull(r, rest)
+	if err != nil {
+		return Message{}, fmt.Errorf("failed to read message payload: %v", err)
 	}
 
-	payload := b[7 : 7+payloadLen]
-	crc := binary.BigEndian.Uint32(b[len(b)-4:])
+	payload := rest[:payloadLen]
+	crc := binary.BigEndian.Uint32(rest[len(rest)-4:])
 
 	if crc32.ChecksumIEEE(payload) != crc {
 		return Message{}, errors.New("invalid payload checksum")
