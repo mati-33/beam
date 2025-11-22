@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"time"
 
+	"github.com/mati-33/beam/internal/absorber"
+	"github.com/mati-33/beam/internal/emitter"
+	p "github.com/mati-33/beam/internal/protocol"
 	"github.com/mati-33/beam/internal/ui"
 )
 
@@ -57,67 +60,91 @@ func handleEmit() error {
 	fmt.Println("beam code is:", beamCode)
 	fmt.Println()
 
-	l, err := net.Listen("tcp", "localhost:3000")
-	defer l.Close()
+	e, err := emitter.New()
 	if err != nil {
-		return fmt.Errorf("failed to start tcp server: %v", err)
+		return fmt.Errorf("failed to initialize emiter: %v", err)
 	}
+	defer e.Close()
 
 	spinner := ui.NewSpinner()
 	spinner.Start()
 
-	conn, err := l.Accept()
-	defer conn.Close()
+	err = e.AcceptAbsorber()
 	if err != nil {
-		return fmt.Errorf("failed to accept connection: %v", err)
+		return fmt.Errorf("failed to accept absorber: %v", err)
 	}
 
-	buff := make([]byte, 8)
 	for {
-		n, err := conn.Read(buff)
-		if n == 0 {
-			return errors.New("absorber diconnected")
+		beamCodeMsg, err := e.Receive()
+		if err != nil {
+			return fmt.Errorf("failed to get beam code from absorber: %v", err)
 		}
-		if string(buff[:n]) != beamCode {
-			conn.Write([]byte("NO"))
+		if beamCodeMsg.Type != p.BC {
+			return fmt.Errorf("excpected BC message but got: %s", string(beamCodeMsg.Type))
+		}
+
+		if !bytes.Equal(beamCodeMsg.Payload, []byte(beamCode)) {
+			if err := e.Send(*p.NewNO()); err != nil {
+				return fmt.Errorf("failed to reply to absorber: %v", err)
+			}
 			continue
 		}
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return errors.New("absorber diconnected")
-			}
-			return fmt.Errorf("failed to verify beam code: %v", err)
+
+		if err := e.Send(*p.NewOK()); err != nil {
+			return fmt.Errorf("failed to reply to absorber: %v", err)
 		}
-		if string(buff[:n]) == beamCode {
-			conn.Write([]byte("OK"))
-			break
-		}
+		break
+	}
+
+	if err := e.Send(*p.NewFI([]byte("some file info"))); err != nil {
+		return fmt.Errorf("failed to send file info: %v", err)
+	}
+	oknoMsg, err := e.Receive()
+	if err != nil {
+		return fmt.Errorf("failed to receive OK/NO msg after sending FI: %v", err)
+	}
+	if oknoMsg.Type != p.OK {
+		return errors.New("absorber rejected file transfer")
 	}
 
 	spinner.Stop()
-	fmt.Println()
-	fmt.Println("Emiting to", conn.RemoteAddr())
+	fmt.Println("\nemitting file to absorber...")
 
 	cpBuff := make([]byte, 8)
 	for {
-		n, readErr := file.Read(cpBuff)
-		_, writeErr := conn.Write(cpBuff[:n])
+		_, readErr := file.Read(cpBuff)
+		fcMsg := p.NewFC(cpBuff)
+
+		if errors.Is(readErr, io.EOF) {
+			err := e.Send(*p.NewFC([]byte{}))
+			if err != nil {
+				return fmt.Errorf("failed to send FC EOF message: %v", err)
+			}
+			if _, err := e.Receive(); err != nil {
+				return fmt.Errorf("failed to receive message: %v", err)
+			}
+			break
+		}
 		if readErr != nil {
-			if errors.Is(readErr, io.EOF) {
-				break
-			}
-			return fmt.Errorf("failed to read file: %v", readErr)
+			return fmt.Errorf("failed to read file: %v", err)
 		}
-		if writeErr != nil {
-			if errors.Is(writeErr, io.EOF) {
-				return errors.New("absorber disconnected during file transfer")
-			}
-			return fmt.Errorf("failed to emit file: %v", writeErr)
+
+		if err := e.Send(*fcMsg); err != nil {
+			return fmt.Errorf("failed to send FC message: %v", err)
 		}
-		time.Sleep(100 * time.Millisecond)
+
+		oknoMsg, err := e.Receive()
+		if err != nil {
+			return fmt.Errorf("failed to receive OK/NO msg after sending FC: %v", err)
+		}
+		if oknoMsg.Type != p.OK {
+			return errors.New("absorber canceled file transfer")
+		}
+
+		time.Sleep(10 * time.Millisecond)
 	}
 
-	fmt.Println("file emited!")
+	fmt.Println("file emitted!")
 	return nil
 }
 
@@ -126,9 +153,78 @@ func handleAbsorb() error {
 		return errors.New("'absorb' command expects beam code argument")
 	}
 	beamCode := os.Args[2]
-	fmt.Println("handling absorb...")
-	fmt.Println("beam code is:", beamCode)
 
+	a, err := absorber.New()
+	if err != nil {
+		return fmt.Errorf("failed to initialize absorber: %v", err)
+	}
+	defer a.Close()
+
+	if err := a.Send(*p.NewBC([]byte(beamCode))); err != nil {
+		return fmt.Errorf("failed to send BC message: %v", err)
+	}
+
+	oknoMsg, err := a.Receive()
+	if err != nil {
+		return fmt.Errorf("failed to receive OK/NO beam code confirmation: %v", err)
+	}
+	if oknoMsg.Type != p.OK {
+		return errors.New("invalid beam code")
+	}
+
+	fiMsg, err := a.Receive()
+	if err != nil {
+		return fmt.Errorf("failed to receive FI message: %v", err)
+	}
+	if fiMsg.Type != p.FI {
+		return fmt.Errorf("expected FI, got: %v", string(fiMsg.Type))
+	}
+
+	fmt.Println()
+	fmt.Println("file info:", string(fiMsg.Payload))
+	fmt.Println("accept? y/n: ")
+	fmt.Println()
+	// Todo: confirmation here
+
+	if err := a.Send(*p.NewOK()); err != nil {
+		return fmt.Errorf("failed to send OK message: %v", err)
+	}
+
+	file, err := os.Create("copied")
+	defer file.Close()
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+
+	fmt.Println("absorbing file...")
+	for {
+		fcMsg, err := a.Receive()
+		if err != nil {
+			return fmt.Errorf("failed to receive FC message: %v", err)
+		}
+
+		if fcMsg.Type != p.FC {
+			return fmt.Errorf("expected FC, got: %s", string(fcMsg.Type))
+		}
+		if err := a.Send(*p.NewOK()); err != nil {
+			return fmt.Errorf("failed to send OK message: %v", err)
+		}
+
+		if len(fcMsg.Payload) == 0 {
+			if err := a.Send(*p.NewOK()); err != nil {
+				return fmt.Errorf("failed to send OK message: %v", err)
+			}
+			break
+		}
+
+		_, err = file.Write(fcMsg.Payload)
+		if err != nil {
+			return fmt.Errorf("failed to write to file: %v", err)
+		}
+
+	}
+
+	fmt.Println("file absorbed!")
 	return nil
 }
 

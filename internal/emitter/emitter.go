@@ -36,17 +36,9 @@ func (e *Emitter) AcceptAbsorber() error {
 	return nil
 }
 
-func (e *Emitter) Receive(msgType p.MessageType) (p.Message, error) {
+func (e *Emitter) Receive() (p.Message, error) {
 	if e.conn == nil {
 		panic("called Receive before AcceptAbsorber")
-	}
-
-	switch msgType {
-	case p.FC, p.FI:
-		panic("emitter cannot receive FC/FI messages")
-	case p.OK, p.NO, p.BC:
-	default:
-		panic("unknown message type")
 	}
 
 	m, err := p.ReadMessage(e.conn)

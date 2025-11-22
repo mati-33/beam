@@ -23,15 +23,7 @@ func (a *Absorber) Close() error {
 	return a.conn.Close()
 }
 
-func (a *Absorber) Receive(msgType p.MessageType) (p.Message, error) {
-	switch msgType {
-	case p.BC:
-		panic("absorber cannot receive BC message")
-	case p.OK, p.NO, p.FC, p.FI:
-	default:
-		panic("unknown message type")
-	}
-
+func (a *Absorber) Receive() (p.Message, error) {
 	m, err := p.ReadMessage(a.conn)
 	if err != nil {
 		return p.Message{}, fmt.Errorf("failed to receive message from emitter: %v", err)
