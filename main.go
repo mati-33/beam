@@ -96,7 +96,7 @@ func handleEmit() error {
 		break
 	}
 
-	if err := e.Send(*p.NewFI([]byte("some file info"))); err != nil {
+	if err := e.Send(*p.NewFI(filename, stats.Size())); err != nil {
 		return fmt.Errorf("failed to send file info: %v", err)
 	}
 	oknoMsg, err := e.Receive()
@@ -181,10 +181,11 @@ func handleAbsorb() error {
 	if fiMsg.Type != p.FI {
 		return fmt.Errorf("expected FI, got: %v", string(fiMsg.Type))
 	}
+	fileInfo := p.DecodeFIPayload(fiMsg.Payload)
 
 	fmt.Println()
-	fmt.Println("file info:", string(fiMsg.Payload))
-	fmt.Println("accept? y/n: ")
+	fmt.Printf("%s - %s\n", fileInfo.Name, ui.FormatSize(fileInfo.Size))
+	fmt.Println("absorb? y/n: ")
 	fmt.Println()
 	// Todo: confirmation here
 
@@ -198,6 +199,7 @@ func handleAbsorb() error {
 		return fmt.Errorf("failed to create file: %v", err)
 	}
 
+	pb := ui.NewProgressBar(fileInfo.Size)
 	fmt.Println("absorbing file...")
 	for {
 		fcMsg, err := a.Receive()
@@ -219,14 +221,15 @@ func handleAbsorb() error {
 			break
 		}
 
-		_, err = file.Write(fcMsg.Payload)
+		n, err := file.Write(fcMsg.Payload)
 		if err != nil {
 			return fmt.Errorf("failed to write to file: %v", err)
 		}
+		pb.Update(int64(n))
 
 	}
 
-	fmt.Println("file absorbed!")
+	fmt.Println("\nfile absorbed!")
 	return nil
 }
 

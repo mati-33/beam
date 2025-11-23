@@ -29,8 +29,25 @@ type Message struct {
 func NewOK() *Message         { return &Message{Type: OK} }
 func NewNO() *Message         { return &Message{Type: NO} }
 func NewBC(p []byte) *Message { return &Message{Type: BC, Payload: p} }
-func NewFI(p []byte) *Message { return &Message{Type: FI, Payload: p} }
 func NewFC(p []byte) *Message { return &Message{Type: FC, Payload: p} }
+
+func NewFI(name string, size int64) *Message {
+	p := make([]byte, 8+len(name))
+	binary.BigEndian.PutUint64(p, uint64(size))
+	p = append(p, []byte(name)...)
+	return &Message{Type: FI, Payload: p}
+}
+
+type FileInfo struct {
+	Name string
+	Size int64
+}
+
+func DecodeFIPayload(p []byte) FileInfo {
+	s := int64(binary.BigEndian.Uint64(p[:8]))
+	n := string(p[8:])
+	return FileInfo{Name: n, Size: s}
+}
 
 func WriteMessage(w io.Writer, m Message) error {
 	b := make([]byte, 0, 7+len(m.Payload)+4)
