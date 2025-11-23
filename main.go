@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mati-33/beam/internal/absorber"
@@ -143,7 +145,7 @@ func handleEmit() error {
 		}
 
 		pb.Update(int64(n))
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	fmt.Println("\nfile emitted!")
@@ -185,9 +187,18 @@ func handleAbsorb() error {
 
 	fmt.Println()
 	fmt.Printf("%s - %s\n", fileInfo.Name, ui.FormatSize(fileInfo.Size))
-	fmt.Println("absorb? y/n: ")
-	fmt.Println()
-	// Todo: confirmation here
+
+	r := bufio.NewReader(os.Stdin)
+	fmt.Print("absorb? (y/n): ")
+	input, err := r.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to get confirmation: %v", err)
+	}
+	input = strings.TrimSpace(strings.ToLower(input))
+	if input != "y" {
+		fmt.Println("cancelled")
+		return nil
+	}
 
 	if err := a.Send(*p.NewOK()); err != nil {
 		return fmt.Errorf("failed to send OK message: %v", err)
