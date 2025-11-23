@@ -55,7 +55,7 @@ func handleEmit() error {
 		return fmt.Errorf("failed to fetch %s file information: %v", filename, err)
 	}
 
-	fmt.Printf("Emiting '%s' (%s)\n", filename, formatFileSize(stats.Size()))
+	fmt.Printf("Emiting '%s' (%s)\n", filename, ui.FormatSize((stats.Size())))
 	beamCode := generateBeamCode()
 	fmt.Println("beam code is:", beamCode)
 	fmt.Println()
@@ -110,9 +110,10 @@ func handleEmit() error {
 	spinner.Stop()
 	fmt.Println("\nemitting file to absorber...")
 
+	pb := ui.NewProgressBar(stats.Size())
 	cpBuff := make([]byte, 8)
 	for {
-		_, readErr := file.Read(cpBuff)
+		n, readErr := file.Read(cpBuff)
 		fcMsg := p.NewFC(cpBuff)
 
 		if errors.Is(readErr, io.EOF) {
@@ -141,10 +142,11 @@ func handleEmit() error {
 			return errors.New("absorber canceled file transfer")
 		}
 
+		pb.Update(int64(n))
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	fmt.Println("file emitted!")
+	fmt.Println("\nfile emitted!")
 	return nil
 }
 
@@ -230,16 +232,4 @@ func handleAbsorb() error {
 
 func generateBeamCode() string {
 	return "secret"
-}
-
-func formatFileSize(size int64) string {
-	if size < 100 {
-		return fmt.Sprintf("%d B", size)
-	} else if size < 100_000 {
-		return fmt.Sprintf("%.2f KB", float64(size)/1_000.)
-	} else if size < 100_000_000 {
-		return fmt.Sprintf("%.2f MB", float64(size)/1_000_000.)
-	} else {
-		return fmt.Sprintf("%.2f GB", float64(size)/1_000_000_000.)
-	}
 }
