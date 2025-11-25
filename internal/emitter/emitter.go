@@ -13,7 +13,7 @@ type Emitter struct {
 }
 
 func New() (*Emitter, error) {
-	l, err := net.Listen("tcp", "localhost:3000")
+	l, err := net.Listen("tcp", ":3000")
 	if err != nil {
 		return &Emitter{}, fmt.Errorf("failed to start tcp server: %v", err)
 	}

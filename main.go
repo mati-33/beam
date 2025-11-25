@@ -3,10 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,6 +48,11 @@ func handleEmit() error {
 		return errors.New("'emit' command expects filename argument")
 	}
 
+	ip, err := getLocalIP()
+	if err != nil {
+		return fmt.Errorf("failed to determine local ip address: %v", err)
+	}
+
 	filename := os.Args[2]
 	file, err := os.Open(filename)
 	defer file.Close()
@@ -59,7 +68,9 @@ func handleEmit() error {
 
 	fmt.Printf("Emiting '%s' (%s)\n", filename, ui.FormatSize((stats.Size())))
 	beamCode := generateBeamCode()
-	fmt.Println("beam code is:", beamCode)
+	beamCodeBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(beamCodeBytes, uint16(beamCode))
+	fmt.Println("beam code is:", ip+":"+strconv.Itoa(beamCode))
 	fmt.Println()
 
 	e, err := emitter.New()
@@ -85,7 +96,7 @@ func handleEmit() error {
 			return fmt.Errorf("excpected BC message but got: %s", string(beamCodeMsg.Type))
 		}
 
-		if !bytes.Equal(beamCodeMsg.Payload, []byte(beamCode)) {
+		if !bytes.Equal(beamCodeMsg.Payload, beamCodeBytes) {
 			if err := e.Send(*p.NewNO()); err != nil {
 				return fmt.Errorf("failed to reply to absorber: %v", err)
 			}
@@ -156,15 +167,22 @@ func handleAbsorb() error {
 	if len(os.Args) < 3 {
 		return errors.New("'absorb' command expects beam code argument")
 	}
-	beamCode := os.Args[2]
+	ipBeamCode := os.Args[2]
+	ip, beamCode, err := decodeIpBeam(ipBeamCode)
+	if err != nil {
+		return err
+	}
 
-	a, err := absorber.New()
+	beamCodeBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(beamCodeBytes, uint16(beamCode))
+
+	a, err := absorber.New(ip)
 	if err != nil {
 		return fmt.Errorf("failed to initialize absorber: %v", err)
 	}
 	defer a.Close()
 
-	if err := a.Send(*p.NewBC([]byte(beamCode))); err != nil {
+	if err := a.Send(*p.NewBC(beamCodeBytes)); err != nil {
 		return fmt.Errorf("failed to send BC message: %v", err)
 	}
 
@@ -244,6 +262,26 @@ func handleAbsorb() error {
 	return nil
 }
 
-func generateBeamCode() string {
-	return "secret"
+func generateBeamCode() int {
+	return rand.Intn(9999-1000) + 1000
+}
+
+func getLocalIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
+}
+
+func decodeIpBeam(v string) (string, int, error) {
+	comps := strings.Split(v, ":")
+	beamCode, err := strconv.Atoi(comps[1])
+	if err != nil {
+		return "", 0, err
+	}
+	return comps[0], beamCode, nil
 }

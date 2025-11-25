@@ -11,8 +11,8 @@ type Absorber struct {
 	conn net.Conn
 }
 
-func New() (*Absorber, error) {
-	conn, err := net.Dial("tcp", "localhost:3000")
+func New(addr string) (*Absorber, error) {
+	conn, err := net.Dial("tcp", addr+":3000")
 	if err != nil {
 		return &Absorber{}, fmt.Errorf("failed to connect to tcp server: %v", err)
 	}
