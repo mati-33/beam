@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"strconv"
 )
 
 type MessageType byte
@@ -47,6 +48,23 @@ func DecodeFIPayload(p []byte) FileInfo {
 	s := int64(binary.BigEndian.Uint64(p[:8]))
 	n := string(p[8:])
 	return FileInfo{Name: n, Size: s}
+}
+
+func DecodeBCPayload(p []byte) string {
+	v := binary.BigEndian.Uint16(p)
+	return fmt.Sprintf("%x", v)
+}
+
+func EncodeBCPayload(v string) ([]byte, error) {
+	i, err := strconv.ParseUint(v, 16, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, uint16(i))
+
+	return b, nil
 }
 
 func WriteMessage(w io.Writer, m Message) error {
