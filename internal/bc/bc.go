@@ -57,7 +57,7 @@ func randomNumRange(min, max int) int {
 }
 
 func BeamCodeHex() string {
-	return fmt.Sprintf("%x", randomNumRange(1, 255))
+	return fmt.Sprintf("%02x", randomNumRange(1, 255))
 }
 
 func HostBitsHex() (string, error) {
