@@ -16,11 +16,11 @@ func main() {
 	var err error
 
 	switch os.Args[1] {
-	case "emit":
+	case "emit", "e":
 		err = cli.Emit()
-	case "absorb":
+	case "absorb", "a":
 		err = cli.Absorb()
-	case "help":
+	case "help", "-h", "--help":
 		cli.Help()
 	default:
 		err = fmt.Errorf("unknown command: %s", os.Args[1])
