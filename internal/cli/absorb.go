@@ -19,8 +19,14 @@ func Absorb() error {
 	}
 
 	ipBeamCode := os.Args[2]
+	if !bc.IsBeamCodeValid(ipBeamCode) {
+		return errors.New("invalid beam code")
+	}
+
 	beamCode := ipBeamCode[len(ipBeamCode)-2:]
-	address, err := bc.AbsorberAddress(ipBeamCode[:len(ipBeamCode)-2])
+	ipCode := ipBeamCode[:len(ipBeamCode)-2]
+
+	address, err := bc.AbsorberAddress(ipCode)
 	if err != nil {
 		return fmt.Errorf("failed to decode: %v", err)
 	}

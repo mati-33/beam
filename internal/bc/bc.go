@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strconv"
 )
 
 func getLocalIPv4() (net.IP, error) {
@@ -68,7 +69,7 @@ func HostBitsHex() (string, error) {
 
 	npref, err := getNetworkPrefix()
 	if err != nil {
-		return ipv4ToHexStr(localIPv4), nil
+		npref = 0
 	}
 
 	hostBits := getHostBits(localIPv4, npref)
@@ -86,6 +87,10 @@ func AbsorberAddress(hostBitsHex string) (string, error) {
 		return "", err
 	}
 
+	if len(hostBitsBin) > 32 {
+		return "", errors.New("invalid beam code")
+	}
+
 	localIPv4, err := getLocalIPv4()
 	if err != nil {
 		return "", err
@@ -100,4 +105,17 @@ func AbsorberAddress(hostBitsHex string) (string, error) {
 	}
 
 	return address, nil
+}
+
+func IsBeamCodeValid(bc string) bool {
+	if len(bc) < 3 || len(bc) > 10 {
+		return false
+	}
+
+	_, err := strconv.ParseUint(bc, 16, 64)
+	if err != nil {
+		return false
+	}
+
+	return true
 }

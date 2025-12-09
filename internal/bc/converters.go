@@ -32,14 +32,6 @@ func hexToBinStr(hex string) (string, error) {
 	return fmt.Sprintf("%b", n), nil
 }
 
-func ipv4ToHexStr(ip net.IP) string {
-	ret := ""
-	for _, o := range ip {
-		ret += fmt.Sprintf("%x", o)
-	}
-	return ret
-}
-
 func binaryIPv4ToDecimal(bin string) (string, error) {
 	if len(bin) != 32 {
 		return "", errors.New("input must be a 32-bit binary string")
