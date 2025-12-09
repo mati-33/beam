@@ -82,7 +82,7 @@ func Absorb() error {
 		return fmt.Errorf("failed to send OK message: %v", err)
 	}
 
-	file, err := os.Create("copied")
+	file, err := os.Create(fileInfo.Name)
 	defer file.Close()
 	if err != nil {
 		return fmt.Errorf("failed to create file: %v", err)

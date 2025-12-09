@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/mati-33/beam/internal/bc"
@@ -18,13 +19,14 @@ func Emit() error {
 		return errors.New("'emit' command expects filename argument")
 	}
 
-	filename := os.Args[2]
-	file, err := os.Open(filename)
+	path := os.Args[2]
+	file, err := os.Open(path)
 	defer file.Close()
 
 	if err != nil {
-		return fmt.Errorf("failed to open %s file: %v", filename, err)
+		return fmt.Errorf("failed to open %s: %v", path, err)
 	}
+	filename := filepath.Base(path)
 
 	stats, err := file.Stat()
 	if err != nil {

@@ -33,7 +33,7 @@ func NewBC(p []byte) *Message { return &Message{Type: BC, Payload: p} }
 func NewFC(p []byte) *Message { return &Message{Type: FC, Payload: p} }
 
 func NewFI(name string, size int64) *Message {
-	p := make([]byte, 8+len(name))
+	p := make([]byte, 8)
 	binary.BigEndian.PutUint64(p, uint64(size))
 	p = append(p, []byte(name)...)
 	return &Message{Type: FI, Payload: p}
