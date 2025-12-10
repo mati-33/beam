@@ -52,7 +52,7 @@ func DecodeFIPayload(p []byte) FileInfo {
 
 func DecodeBCPayload(p []byte) string {
 	v := binary.BigEndian.Uint16(p)
-	return fmt.Sprintf("%x", v)
+	return fmt.Sprintf("%02x", v)
 }
 
 func EncodeBCPayload(v string) ([]byte, error) {
