@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -104,13 +105,10 @@ func Absorb() error {
 		}
 
 		if len(fcMsg.Payload) == 0 {
-			if err := a.Send(*p.NewOK()); err != nil {
-				return fmt.Errorf("failed to send OK message: %v", err)
-			}
 			break
 		}
 
-		n, err := file.Write(fcMsg.Payload)
+		n, err := file.Write(bytes.Trim(fcMsg.Payload, "\x00"))
 		if err != nil {
 			return fmt.Errorf("failed to write to file: %v", err)
 		}
