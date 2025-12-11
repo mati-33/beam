@@ -38,6 +38,11 @@ func (e *Emitter) AcceptAbsorber() error {
 	return nil
 }
 
+func (e *Emitter) ClearAbsorber() {
+	_ = e.conn.Close()
+	e.conn = nil
+}
+
 func (e *Emitter) Receive() (p.Message, error) {
 	if e.conn == nil {
 		panic("called Receive before AcceptAbsorber")

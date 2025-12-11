@@ -51,33 +51,39 @@ func Emit() error {
 	spinner := ui.NewSpinner()
 	spinner.Start()
 
-	err = e.AcceptAbsorber()
-	if err != nil {
-		return fmt.Errorf("failed to accept absorber: %v", err)
-	}
-
+outer:
 	for {
-		beamCodeMsg, err := e.Receive()
+		err = e.AcceptAbsorber()
 		if err != nil {
-			return fmt.Errorf("failed to get beam code from absorber: %v", err)
-		}
-		if beamCodeMsg.Type != p.BC {
-			return fmt.Errorf("excpected BC message but got: %s", string(beamCodeMsg.Type))
+			return fmt.Errorf("failed to accept absorber: %v", err)
 		}
 
-		decodedBeamCode := p.DecodeBCPayload(beamCodeMsg.Payload)
+		for {
+			beamCodeMsg, err := e.Receive()
+			if err != nil {
+				e.ClearAbsorber()
+				break
+			}
+			if beamCodeMsg.Type != p.BC {
+				e.ClearAbsorber()
+				break
+			}
 
-		if decodedBeamCode != beamCode {
-			if err := e.Send(*p.NewNO()); err != nil {
+			decodedBeamCode := p.DecodeBCPayload(beamCodeMsg.Payload)
+
+			if decodedBeamCode != beamCode {
+				if err := e.Send(*p.NewNO()); err != nil {
+					return fmt.Errorf("failed to reply to absorber: %v", err)
+				}
+				e.ClearAbsorber()
+				break
+			}
+
+			if err := e.Send(*p.NewOK()); err != nil {
 				return fmt.Errorf("failed to reply to absorber: %v", err)
 			}
-			continue
+			break outer
 		}
-
-		if err := e.Send(*p.NewOK()); err != nil {
-			return fmt.Errorf("failed to reply to absorber: %v", err)
-		}
-		break
 	}
 
 	if err := e.Send(*p.NewFI(filename, stats.Size())); err != nil {
