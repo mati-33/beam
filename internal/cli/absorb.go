@@ -75,6 +75,9 @@ func Absorb() error {
 	}
 	input = strings.TrimSpace(strings.ToLower(input))
 	if input != "y" {
+		if err := a.Send(*p.NewNO()); err != nil {
+			return fmt.Errorf("failed to send NO message: %v", err)
+		}
 		fmt.Println("cancelled")
 		return nil
 	}

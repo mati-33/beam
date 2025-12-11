@@ -1,7 +1,9 @@
 package emitter
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 
 	p "github.com/mati-33/beam/internal/protocol"
@@ -43,6 +45,9 @@ func (e *Emitter) Receive() (p.Message, error) {
 
 	m, err := p.ReadMessage(e.conn)
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return p.Message{}, errors.New("absorber disconnected")
+		}
 		return p.Message{}, fmt.Errorf("failed to receive message from absorber: %v", err)
 	}
 	return m, nil

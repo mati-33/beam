@@ -77,7 +77,7 @@ func WriteMessage(w io.Writer, m Message) error {
 
 	_, err := w.Write(b)
 	if err != nil {
-		return fmt.Errorf("failed to write message: %v", err)
+		return fmt.Errorf("failed to write message: %w", err)
 	}
 
 	return nil
@@ -87,7 +87,7 @@ func ReadMessage(r io.Reader) (Message, error) {
 	header := make([]byte, 7)
 	_, err := io.ReadFull(r, header)
 	if err != nil {
-		return Message{}, fmt.Errorf("failed to read message header: %v", err)
+		return Message{}, fmt.Errorf("failed to read message header: %w", err)
 	}
 
 	if !bytes.Equal(header[:4], startingSequence[:]) {
@@ -105,7 +105,7 @@ func ReadMessage(r io.Reader) (Message, error) {
 	rest := make([]byte, payloadLen+4)
 	_, err = io.ReadFull(r, rest)
 	if err != nil {
-		return Message{}, fmt.Errorf("failed to read message payload: %v", err)
+		return Message{}, fmt.Errorf("failed to read message payload: %w", err)
 	}
 
 	payload := rest[:payloadLen]
