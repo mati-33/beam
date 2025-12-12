@@ -2,7 +2,6 @@ package absorber
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net"
 
@@ -16,7 +15,7 @@ type Absorber struct {
 func New(addr string) (*Absorber, error) {
 	conn, err := net.Dial("tcp", addr+":3000")
 	if err != nil {
-		return &Absorber{}, fmt.Errorf("failed to connect to tcp server: %v", err)
+		return &Absorber{}, err
 	}
 	return &Absorber{conn}, nil
 }
@@ -31,7 +30,7 @@ func (a *Absorber) Receive() (p.Message, error) {
 		if errors.Is(err, io.EOF) {
 			return p.Message{}, errors.New("emitter disconnected")
 		}
-		return p.Message{}, fmt.Errorf("failed to receive message from emitter: %v", err)
+		return p.Message{}, err
 	}
 	return m, nil
 }
@@ -45,9 +44,5 @@ func (a *Absorber) Send(m p.Message) error {
 		panic("unknown message type")
 	}
 
-	err := p.WriteMessage(a.conn, m)
-	if err != nil {
-		return fmt.Errorf("failed to send message to emitter: %v", err)
-	}
-	return nil
+	return p.WriteMessage(a.conn, m)
 }

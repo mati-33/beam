@@ -29,7 +29,7 @@ func Absorb() error {
 
 	address, err := bc.AbsorberAddress(ipCode)
 	if err != nil {
-		return fmt.Errorf("failed to decode: %v", err)
+		return fmt.Errorf("failed to determine emitter IPv4 address: %v", err)
 	}
 
 	beamCodeBytes, err := p.EncodeBCPayload(beamCode)
@@ -41,7 +41,7 @@ func Absorb() error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize absorber: %v", err)
 	}
-	defer a.Close()
+	defer func() { _ = a.Close() }()
 
 	if err := a.Send(*p.NewBC(beamCodeBytes)); err != nil {
 		return fmt.Errorf("failed to send BC message: %v", err)
@@ -64,7 +64,6 @@ func Absorb() error {
 	}
 	fileInfo := p.DecodeFIPayload(fiMsg.Payload)
 
-	fmt.Println()
 	fmt.Printf("%s - %s\n", fileInfo.Name, ui.FormatSize(fileInfo.Size))
 
 	r := bufio.NewReader(os.Stdin)
@@ -78,7 +77,7 @@ func Absorb() error {
 		if err := a.Send(*p.NewNO()); err != nil {
 			return fmt.Errorf("failed to send NO message: %v", err)
 		}
-		fmt.Println("cancelled")
+		fmt.Println("absorbtion rejected")
 		return nil
 	}
 
@@ -87,13 +86,13 @@ func Absorb() error {
 	}
 
 	file, err := os.Create(fileInfo.Name)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if err != nil {
 		return fmt.Errorf("failed to create file: %v", err)
 	}
 
 	pb := ui.NewProgressBar(fileInfo.Size)
-	fmt.Println("absorbing file...")
+
 	for {
 		fcMsg, err := a.Receive()
 		if err != nil {
@@ -116,7 +115,6 @@ func Absorb() error {
 			return fmt.Errorf("failed to write to file: %v", err)
 		}
 		pb.Update(int64(n))
-
 	}
 
 	fmt.Println("\nfile absorbed!")

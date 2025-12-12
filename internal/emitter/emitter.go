@@ -2,7 +2,6 @@ package emitter
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net"
 
@@ -17,7 +16,7 @@ type Emitter struct {
 func New() (*Emitter, error) {
 	l, err := net.Listen("tcp", ":3000")
 	if err != nil {
-		return &Emitter{}, fmt.Errorf("failed to start tcp server: %v", err)
+		return &Emitter{}, err
 	}
 	return &Emitter{l: l}, nil
 }
@@ -32,7 +31,7 @@ func (e *Emitter) Close() error {
 func (e *Emitter) AcceptAbsorber() error {
 	a, err := e.l.Accept()
 	if err != nil {
-		return fmt.Errorf("failed to accept absorber: %v", err)
+		return err
 	}
 	e.conn = a
 	return nil
@@ -53,7 +52,7 @@ func (e *Emitter) Receive() (p.Message, error) {
 		if errors.Is(err, io.EOF) {
 			return p.Message{}, errors.New("absorber disconnected")
 		}
-		return p.Message{}, fmt.Errorf("failed to receive message from absorber: %v", err)
+		return p.Message{}, err
 	}
 	return m, nil
 }
@@ -70,9 +69,5 @@ func (e *Emitter) Send(m p.Message) error {
 		panic("unknown message type")
 	}
 
-	err := p.WriteMessage(e.conn, m)
-	if err != nil {
-		return fmt.Errorf("failed to send message to absorber: %v", err)
-	}
-	return nil
+	return p.WriteMessage(e.conn, m)
 }

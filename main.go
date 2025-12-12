@@ -27,7 +27,7 @@ func main() {
 	}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nan error occured: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\n%v\n", err)
 		os.Exit(1)
 	}
 }

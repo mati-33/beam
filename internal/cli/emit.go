@@ -21,11 +21,11 @@ func Emit() error {
 
 	path := os.Args[2]
 	file, err := os.Open(path)
-	defer file.Close()
-
+	defer func() { _ = file.Close() }()
 	if err != nil {
 		return fmt.Errorf("failed to open %s: %v", path, err)
 	}
+
 	filename := filepath.Base(path)
 
 	stats, err := file.Stat()
@@ -38,6 +38,7 @@ func Emit() error {
 	if err != nil {
 		return fmt.Errorf("failed to generate beam code: %v", err)
 	}
+
 	fmt.Printf("Emiting '%s' (%s)\n", filename, ui.FormatSize((stats.Size())))
 	fmt.Printf("beam code is: %s%s\n", hostBitsHex, beamCode)
 	fmt.Println()
@@ -94,11 +95,12 @@ outer:
 		return fmt.Errorf("failed to receive OK/NO msg after sending FI: %v", err)
 	}
 	if oknoMsg.Type != p.OK {
-		return errors.New("absorber rejected file transfer")
+		fmt.Println("\nabsorber rejected file transfer")
+		return nil
 	}
 
 	spinner.Stop()
-	fmt.Println("\nemitting file to absorber...")
+	fmt.Println()
 
 	pb := ui.NewProgressBar(stats.Size())
 	cpBuff := make([]byte, 8)
@@ -126,10 +128,10 @@ outer:
 
 		oknoMsg, err := e.Receive()
 		if err != nil {
-			return fmt.Errorf("failed to receive OK/NO msg after sending FC: %v", err)
+			return fmt.Errorf("failed to receive OK/NO message after sending FC: %v", err)
 		}
 		if oknoMsg.Type != p.OK {
-			return errors.New("absorber canceled file transfer")
+			return errors.New("file chunk rejected by absorber")
 		}
 
 		pb.Update(int64(n))

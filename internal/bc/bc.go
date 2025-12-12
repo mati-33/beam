@@ -73,12 +73,7 @@ func HostBitsHex() (string, error) {
 	}
 
 	hostBits := getHostBits(localIPv4, npref)
-	hostBitsHex, err := binToHexStr(hostBits)
-	if err != nil {
-		return "", nil
-	}
-
-	return hostBitsHex, nil
+	return binToHexStr(hostBits)
 }
 
 func AbsorberAddress(hostBitsHex string) (string, error) {
