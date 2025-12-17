@@ -86,7 +86,13 @@ func Absorb() error {
 	}
 
 	file, err := os.Create(fileInfo.Name)
-	defer func() { _ = file.Close() }()
+	absorbFailed := true
+	defer func() {
+		_ = file.Close()
+		if absorbFailed == true {
+			_ = os.Remove(fileInfo.Name)
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("failed to create file: %v", err)
 	}
@@ -107,6 +113,7 @@ func Absorb() error {
 		}
 
 		if len(fcMsg.Payload) == 0 {
+			absorbFailed = false
 			break
 		}
 
