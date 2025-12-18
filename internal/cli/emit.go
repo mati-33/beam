@@ -102,7 +102,7 @@ outer:
 	fmt.Println()
 
 	pb := ui.NewProgressBar(stats.Size())
-	cpBuff := make([]byte, 64*1024)
+	cpBuff := make([]byte, 64*1000)
 	for {
 		n, readErr := file.Read(cpBuff)
 		fcMsg := p.NewFC(cpBuff)
