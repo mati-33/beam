@@ -13,7 +13,7 @@ type Absorber struct {
 }
 
 func New(addr string) (*Absorber, error) {
-	conn, err := net.Dial("tcp", addr+":3000")
+	conn, err := net.Dial("tcp", addr+":9001")
 	if err != nil {
 		return &Absorber{}, err
 	}

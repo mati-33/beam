@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/mati-33/beam/internal/bc"
 	"github.com/mati-33/beam/internal/emitter"
@@ -103,7 +102,7 @@ outer:
 	fmt.Println()
 
 	pb := ui.NewProgressBar(stats.Size())
-	cpBuff := make([]byte, 8)
+	cpBuff := make([]byte, 64*1024)
 	for {
 		n, readErr := file.Read(cpBuff)
 		fcMsg := p.NewFC(cpBuff)
@@ -135,7 +134,6 @@ outer:
 		}
 
 		pb.Update(int64(n))
-		time.Sleep(2 * time.Millisecond)
 	}
 
 	fmt.Println("\nfile emitted!")

@@ -14,7 +14,7 @@ type Emitter struct {
 }
 
 func New() (*Emitter, error) {
-	l, err := net.Listen("tcp", ":3000")
+	l, err := net.Listen("tcp", ":9001")
 	if err != nil {
 		return &Emitter{}, err
 	}
