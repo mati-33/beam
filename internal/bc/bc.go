@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 )
 
 func getLocalIPv4() (net.IP, error) {
@@ -92,7 +93,11 @@ func AbsorberAddress(hostBitsHex string) (string, error) {
 	}
 
 	localIPv4Bin := ipv4ToBinStr(localIPv4)
-	addressBin := localIPv4Bin[:len(localIPv4Bin)-len(hostBitsBin)] + hostBitsBin
+	npref, err := getNetworkPrefix()
+	if err != nil {
+		return "", err
+	}
+	addressBin := localIPv4Bin[:npref] + strings.Repeat("0", 32-npref-len(hostBitsBin)) + hostBitsBin
 
 	address, err := binaryIPv4ToDecimal(addressBin)
 	if err != nil {
