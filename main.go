@@ -23,7 +23,7 @@ func main() {
 	case "-h", "--help":
 		cli.Help()
 	case "-v", "--version":
-		fmt.Println("beam version 0.0.1")
+		fmt.Println("beam version 0.1.0")
 	default:
 		cli.Usage()
 		err = fmt.Errorf("unknown command: %s", os.Args[1])
